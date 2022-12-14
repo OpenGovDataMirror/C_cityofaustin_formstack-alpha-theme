@@ -1,0 +1,220 @@
+<div>
+  <script type="text/javascript">
+    // Add handlebar Footer js partials to this function.
+    function runFooterJs() {
+      jQuery.noConflict();
+      // Must use jQuery explicitly instead of "$",
+      // because "$" conflicts with Prototype library required by Formstack on "Save and Resume" and "Confirmation" pages.
+      jQuery(function(jQuery){
+        /*
+          Allows iframeResizer to know exactly how large the iframe should be.
+          Parent iframeResizer must use "taggedElement" method
+          https://github.com/davidjbradshaw/iframe-resizer/blob/master/docs/parent_page/options.md#heightcalculationmethod
+        */
+        jQuery('.fsForm').attr('data-iframe-height', 'true');
+        jQuery('.fsPagination .fsPreviousButton .fsFull').text("Back")
+        jQuery('.fsPagination .fsNextButton .fsFull').text("Continue")
+        // Moves helper text from below its field to above its field
+        var helperTexts = jQuery(".fsSupporting");
+        for (i=0; i < helperTexts.length; i++) {
+          var helperText = jQuery(helperTexts[i]);
+          var parent = helperText.parent();
+          helperText.detach();
+          var label = parent.children('.fsLabel');
+          if (label.length) {
+            // If the field's label is in the helperText's parent
+            // then insert the helperText after the label
+            helperText.insertAfter(label);
+          } else {
+            // If the field's label is not in the helperText's parent
+            // (for ex: in <fieldset/> structures)
+            // then insert the helper text at the top of the parent element
+            helperText.prependTo(parent);
+          }
+        }
+        // gracias: https://stackoverflow.com/questions/326069/how-to-identify-if-a-webpage-is-being-loaded-inside-an-iframe-or-directly-into-t
+        function inIframe () {
+            try {
+                return window.self !== window.top;
+            } catch (e) {
+                return true;
+            }
+        }
+        
+        if (inIframe()) {
+          // Remove form's margin and padding if we are embedded within an iFrame
+          jQuery('.fsBody .fsForm').css({
+            margin: "0px",
+            padding: "0px .5rem",
+          })
+          jQuery('.fsBody').css({
+            padding: "0px",
+          })
+        }
+        // Add Calendar Material Icon for jQuery datepicker
+        function addCalendarIcon() {
+          jQuery('.fsCalendar').each(function(i) {
+            var calendarLink = jQuery(this);
+            var calendarTrigger = jQuery(calendarLink.siblings('.ui-datepicker-trigger'));
+            var newCalendarIcon = jQuery('<i></i>')
+              .addClass("material-icons coa-calendar-icon")
+              .text("calendar_today")
+              .attr({
+                "alt": "Select Date",
+                "title": "Select Date",
+                "aria-hidden": true,
+              })
+              .click(function(){
+                calendarTrigger.trigger('click')
+              })
+            newCalendarIcon.insertBefore(calendarLink);
+          });
+        }
+        
+        // Can only modify calendar icon after Formstack's 'load' callback
+        window.addEventListener('load', addCalendarIcon, false);
+        function formatSaveAndResumePage() {
+          // Remove "Your Email Address" placeholder text
+          jQuery('.fs-form-input.fs-form-dialog__password').removeAttr('placeholder');
+        
+          // Move "Without the link..." message after the link
+          var withoutTheLinkMessage = jQuery(jQuery('.fs-thin-indicators.fs-thin-indicators--style_error')[0]);
+          var withoutTheLinkMessageParent = jQuery(withoutTheLinkMessage.parent());
+          withoutTheLinkMessage.detach().appendTo(withoutTheLinkMessageParent);
+        
+          // Make a better email input label
+          var oldEmailLabel = jQuery('.fs-form-label.fs-form-dialog__password-label');
+          oldEmailLabel.remove();
+          // Before we get to the "Save and Resume" Page, the modal (.fs-form-input.fs-form-dialog__password) will contain a hidden email input (with .fs-form-dialog--hidden)
+          // We don't want to add new labels to the hidden field on the modal
+          var emailInput = jQuery('.fs-form-input.fs-form-dialog__password:not(.fs-form-dialog--hidden)');
+          if (emailInput.length) {
+            emailInput.attr('aria-required', "true")
+            // Text is added by "translate.js"
+            var newEmailLabel = jQuery( "<label/>", {
+              "class": "coa-save-and-resume-label",
+              "for": "email",
+            })
+            var newEmailHelperText = jQuery( "<div/>", {
+              "class": "coa-save-and-resume-helper-text",
+            })
+            newEmailLabel.insertBefore(emailInput);
+            newEmailHelperText.insertBefore(emailInput);
+          }
+        
+          // Add Error message to before email Input field
+          var errorMessageContainer = jQuery('.fs-thick-indicators.fs-thick-indicators--style_error')
+          errorMessageContainer.detach().insertBefore(emailInput);
+        
+          // Use material icon for error message
+          errorMessageContainer.empty()
+          errorMessageContainer.append(
+            jQuery("<i/>", {
+              "class": "material-icons coa-error-icon",
+              "text": "error_outline",
+            })
+          )
+          errorMessageContainer.append("<div class='coa-save-and-resume-error-message'></div>")
+        }
+        formatSaveAndResumePage();
+        // translate must be run only after new elements have been added
+        // "lang" attribute seems like the most reliable way to find out what language a form is using.
+        // Fallback to "en" just in case
+        var locale = jQuery(".fsRowBody").attr("lang")
+        
+        // No programatic way to check for locale on "Save and Resume" Page.
+        // For now, we have to use jQuery to check for text.
+        if (!locale) {
+          var saveAndResumePageTitle = jQuery(".module-main__dialog-top-left")
+          if (
+            saveAndResumePageTitle &&
+            saveAndResumePageTitle.text() === "Guardar y reanudar más tarde"
+          ) {
+            locale = "es"
+          } else {
+            // Fallback to "en", just in case
+            locale = "en"
+          }
+        }
+        
+        var translations = [
+          {
+            // Set "(Required)" text
+            "query": ".fsRequiredMarker",
+            "en": "(Required)",
+            "es": "(Obligatoria)",
+          },
+          {
+            // Fix capitalization on "Save and Resume" Button
+            "query": "div.fsSaveIncomplete>a",
+            "en": "Save and resume later",
+            "es": null,
+          },
+          {
+            // Set "Save and resume later" text on modal, with correct capitalization
+            "query": ".fs-ngdialog-content>.fs-form-dialog__title",
+            "en": "Save and resume later",
+            "es": null, // Spanish capitalization is already correct, doesn't need to be modified
+          },
+          {
+            // Set title on "Save and Resume" Page with correct capitalization
+            "query": ".module-main__dialog-top-left",
+            "en": "Save and resume later",
+            "es": null, // Spanish capitalization is already correct, doesn't need to be modified
+          },
+          {
+            // Text for custom element added by formatSaveAndResumePage.js
+            "query": ".coa-save-and-resume-label",
+            "en": "Want us to email you this link?",
+            "es": "¿Desea que le enviaremos por correo electrónico este enlace?",
+          },
+          {
+            // Text for custom element added by formatSaveAndResumePage.js
+            "query": ".coa-save-and-resume-helper-text",
+            "en": "Enter your email below and click 'Send save and resume link'.",
+            "es": "Ingrese su correo electrónico a continuación y haga clic en 'Enviar guardar y reanudar enlace'.",
+          },
+          {
+            // Error Message for "Save and Resume" Page email input
+            "query": ".coa-save-and-resume-error-message",
+            "en": "Please enter an email address.",
+            "es": "Por favor introduzca una dirección de correo eléctronico.",
+          }
+        ]
+        
+        translations.forEach((translation) => {
+          var content = translation[locale];
+          if (content) {
+            jQuery(translation["query"]).text(content)
+          }
+        })
+        // renderBody only when you're done with all of your other js transformation
+        // Display the body after our js and css has finished loading
+        jQuery('body').css('visibility', 'inherit')
+      });
+    }
+    function addJQuery(cb){
+      var currentElement = document.currentScript;
+      var loadJQueryNode = document.createElement('script');
+      loadJQueryNode.setAttribute('src', 'https://code.jquery.com/jquery-3.4.1.min.js');
+      loadJQueryNode.setAttribute('integrity', 'sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=');
+      loadJQueryNode.setAttribute('crossorigin', 'anonymous');
+      loadJQueryNode.setAttribute('async', 'false');
+      loadJQueryNode.onload = cb;
+      currentElement.parentNode.insertBefore(loadJQueryNode, currentElement.nextSibling);
+    }
+    /*
+      The Footer js requires jQuery.
+      The normal form body generated by Formstack loads jQuery.
+      However the confirmation page body does not load jQuery.
+      Therefore, we must manually load jQuery (for the sake of js working on the confirmation page), but only if jQuery is not already loaded.
+      We accomplish this by appending a <script/> tag to the Footer which sources jQuery.
+      The "onload" callback of the script tag will run our Footer js.
+    */
+    if (window.jQuery) {
+      runFooterJs()
+    } else {
+      addJQuery(runFooterJs)
+    }
+  </script>
+</div>
